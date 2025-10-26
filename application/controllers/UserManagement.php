@@ -4,15 +4,41 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Usermanagement extends CI_Controller {
 
     public function __construct() {
-        parent::__construct();
-        $this->load->model('User_model');
+    parent::__construct();
+    $this->load->library('session');
+    $this->load->model('User_model');
+      // DEBUG SESSION
+    // echo "<pre>SESSION SEKARANG:\n";
+    // print_r($this->session->userdata());
+    // echo "</pre>";
+    // exit;
+
+    // Cek apakah sudah login
+    if (!$this->session->userdata('logged_in')) {
+        redirect('auth/login');
     }
+
+    // Batasi hanya untuk bendahara atau superadmin
+    $role = strtolower($this->session->userdata('role'));
+    if (!in_array($role, ['bendahara', 'superadmin'])) {
+        $this->session->set_flashdata('error', 'Anda tidak memiliki hak akses ke halaman ini.');
+        redirect('dashboard/view'); // kembali ke dashboard user
+    }
+}
+
+
 
     // Tampilkan halaman manajemen pengguna
     public function index() {
-        $data['users'] = $this->User_model->get_all_users();
-        $this->load->view('user_management_view', $data);
-    }
+    $data['content_view'] = 'user_management_view';
+    $data['content_data'] = [
+        'users' => $this->User_model->get_all_users()
+    ];
+    $data['title'] = 'Manajemen Pengguna';
+
+    $this->load->view('layouts/bendahara_layout', $data);
+}
+
 
     // Tambah pengguna via AJAX
     public function add_ajax() {

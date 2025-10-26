@@ -74,17 +74,30 @@
                     <input type="text" name="nama_sumber" id="nama_sumber" class="form-control" required>
                 </div>
 
-                <div class="mb-3">
-                    <label for="jumlah" class="form-label"><i class="fas fa-money-bill-wave"></i> Jumlah</label>
-                    <input type="number" name="jumlah" id="jumlah" class="form-control" step="0.01" required>
-                </div>
+               <div class="mb-3">
+    <label for="jumlah" class="form-label">
+        <i class="fas fa-money-bill-wave"></i> Jumlah (opsional)
+    </label>
+    <input type="number" name="jumlah" id="jumlah" class="form-control" step="0.01" placeholder="Boleh dikosongkan">
+</div>
 
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Tambah</button>
-                    <a href="<?= site_url('dashboard/bendahara'); ?>" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Kembali</a>
-                </div>
-            </form>
-        </div>
+
+                <?php
+$role = strtolower($this->session->userdata('role'));
+if ($role === 'bendahara') {
+    $back_url = site_url('dashboard/bendahara');
+} elseif ($role === 'admin' || $role === 'superadmin') {
+    $back_url = site_url('dashboard/admin');
+} else { // user biasa
+    $back_url = site_url('dashboard/view');
+}
+?>
+<div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Tambah</button>
+    <a href="<?= $back_url; ?>" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Kembali</a>
+</div>
+</form>
+</div>
 <h6 class="text-muted mb-3">
     <i class="fas fa-calendar-alt"></i> Tahun Anggaran Aktif: 
     <strong><?= isset($tahun_aktif) ? $tahun_aktif : '-' ?></strong>

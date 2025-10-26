@@ -46,6 +46,9 @@ class SumberAnggaran_model extends CI_Model {
     public function get_sumber_by_tahun($tahun) {
         return $this->db->get_where('sumber_anggaran', ['tahun' => $tahun])->result();
     }
-    
+    public function get_all() {
+    return $this->get_all_sumber(); // alias agar kompatibel dengan semua controller
+}
+
 }
 ?>

@@ -82,5 +82,19 @@ class Anggaran_model extends CI_Model {
             'tahun'   => $tahun
         ])->result();
     }
+    public function get_anggaran_user_with_sumber($user_id) {
+    $tahun_id = $this->session->userdata('tahun_id');
+
+    $this->db->select('a.*, s.nama_sumber');
+    $this->db->from('anggaran a');
+    $this->db->join('sumber_anggaran s', 's.id = a.sumber_id', 'left');
+    $this->db->where('a.user_id', $user_id);
+    if ($tahun_id) {
+        $this->db->where('a.tahun_id', $tahun_id);
+    }
+    $this->db->order_by('a.created_at', 'DESC');
+    return $this->db->get()->result();
+}
+
 }
 ?>

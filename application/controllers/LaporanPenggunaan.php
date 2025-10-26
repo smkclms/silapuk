@@ -6,80 +6,134 @@ class LaporanPenggunaan extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->model('User_model');
-        $this->load->model('Pengeluaran_model');
+        $this->load->model('Expenditure_model');
         $this->load->library('tcpdf');
         $this->load->library('PHPExcel_Lib');
     }
 
     // Halaman laporan penggunaan (bendahara/superadmin)
     public function index() {
-        $role = strtolower($this->session->userdata('role'));
-        $user_id = $this->session->userdata('user_id');
+    $role = strtolower($this->session->userdata('role'));
+    $user_id = $this->session->userdata('user_id');
 
-        if ($role === 'bendahara' || $role === 'superadmin') {
-            $data['users'] = $this->User_model->get_all_users_except_roles(['bendahara', 'superadmin']);
+    // Hanya bendahara & superadmin yang boleh akses
+    if ($role === 'bendahara' || $role === 'superadmin') {
 
-            $start_date = $this->input->get('start_date');
-            $end_date = $this->input->get('end_date');
-            $filter_user_id = $this->input->get('user_id');
+        // Ambil semua user selain bendahara/superadmin
+        $users = $this->User_model->get_all_users_except_roles(['bendahara', 'superadmin']);
 
-            $data['start_date'] = $start_date;
-            $data['end_date'] = $end_date;
-            $data['user_id'] = $filter_user_id;
+        // Ambil filter dari GET
+        $start_date = $this->input->get('start_date', true);
+        $end_date = $this->input->get('end_date', true);
+        $filter_user_id = $this->input->get('user_id', true);
 
-            $data['expenditures'] = $this->Pengeluaran_model->get_filtered_expenditures_with_rekening($start_date, $end_date, $filter_user_id);
+        // Ambil data pengeluaran terfilter
+        $expenditures = $this->Expenditure_model->get_filtered_expenditures_with_rekening(
+            $start_date,
+            $end_date,
+            $filter_user_id
+        );
 
-            $this->load->view('laporan_penggunaan_view', $data);
-        } else {
-            redirect('dashboard/view');
+        // Gunakan layout bendahara
+        $data['content_view'] = 'laporan_penggunaan_view';
+        $data['content_data'] = [
+            'users' => $users,
+            'expenditures' => $expenditures,
+            'start_date' => $start_date,
+            'end_date' => $end_date,
+            'user_id' => $filter_user_id
+        ];
+        $data['title'] = 'Laporan Penggunaan Anggaran';
+
+        $this->load->view('layouts/bendahara_layout', $data);
+    } else {
+        // Role selain bendahara/superadmin diarahkan ke dashboard biasa
+        redirect('dashboard/view');
+    }
+}
+
+
+    // Hitung total pengeluaran (bisa dipakai di dashboard)
+    public function get_total_pengeluaran($user_id = null, $start_date = null, $end_date = null) {
+        $this->db->select_sum('jumlah_pengeluaran');
+        $this->db->from('pengeluaran');
+
+        if (!empty($user_id)) {
+            $this->db->where('user_id', $user_id);
         }
+        if (!empty($start_date)) {
+            $this->db->where('tanggal_pengeluaran >=', $start_date);
+        }
+        if (!empty($end_date)) {
+            $this->db->where('tanggal_pengeluaran <=', $end_date);
+        }
+
+        $query = $this->db->get()->row();
+        return $query ? $query->jumlah_pengeluaran : 0;
     }
 
     // Cetak PDF laporan penggunaan
     public function cetak_pdf() {
-        $role = strtolower($this->session->userdata('role'));
-        if (!in_array($role, ['bendahara', 'superadmin'])) {
-            show_error('Anda tidak memiliki akses ke laporan ini.');
-        }
+    $role = strtolower($this->session->userdata('role'));
+    $user_id = $this->session->userdata('user_id');
 
-        $start_date = $this->input->post('start_date');
-        $end_date = $this->input->post('end_date');
-        $user_id = $this->input->post('user_id');
+    // Ambil filter dari input (kalau ada)
+    $start_date = $this->input->post('start_date');
+    $end_date = $this->input->post('end_date');
+    $filter_user_id = $this->input->post('user_id');
 
-        $expenditures = $this->Pengeluaran_model->get_filtered_expenditures_with_rekening($start_date, $end_date, $user_id);
-
-        $pdf = new Tcpdf();
-        $pdf->AddPage();
-        $pdf->SetFont('helvetica', 'B', 16);
-        $pdf->Cell(0, 10, "Laporan Penggunaan Pengeluaran", 0, 1, 'C');
-        $pdf->Ln(5);
-        $pdf->SetFont('helvetica', '', 11);
-
-        $html = '<table border="1" cellpadding="4" cellspacing="0" style="border-collapse: collapse;">';
-        $html .= '<tr style="background-color:#007bff;color:#fff;">';
-        $html .= '<th>Nomor</th><th>Nama Pengguna</th><th>Tanggal Pengeluaran</th><th>Jumlah</th><th>Kode Rekening</th><th>Keterangan</th></tr>';
-
-        $no = 1;
-        if (empty($expenditures)) {
-            $html .= '<tr><td colspan="6" style="text-align:center;">Tidak ada data pengeluaran.</td></tr>';
-        } else {
-            foreach ($expenditures as $ex) {
-                $user = $this->User_model->get_user_by_id($ex->user_id);
-                $html .= '<tr>';
-                $html .= '<td style="text-align:center;">' . $no++ . '</td>';
-                $html .= '<td>' . ($user ? htmlspecialchars($user->nama_lengkap) : '-') . '</td>';
-                $html .= '<td>' . date('d-m-Y', strtotime($ex->tanggal_pengeluaran)) . '</td>';
-                $html .= '<td style="text-align:right;">Rp ' . number_format($ex->jumlah_pengeluaran, 0, ',', '.') . '</td>';
-                $html .= '<td>' . htmlspecialchars($ex->kode_rekening_kode) . ' - ' . htmlspecialchars($ex->nama_rekening) . '</td>';
-                $html .= '<td>' . htmlspecialchars($ex->keterangan) . '</td>';
-                $html .= '</tr>';
-            }
-        }
-        $html .= '</table>';
-
-        $pdf->writeHTML($html, true, false, true, false, '');
-        $pdf->Output('laporan_penggunaan.pdf', 'I');
+    // 🔹 Kalau user biasa, paksa agar hanya bisa mencetak datanya sendiri
+    if (!in_array($role, ['bendahara', 'superadmin'])) {
+        $filter_user_id = $user_id;
     }
+
+    // Gunakan model Expenditure_model
+    $expenditures = $this->Expenditure_model->get_filtered_expenditures_with_rekening(
+        $start_date,
+        $end_date,
+        $filter_user_id
+    );
+
+    // Inisialisasi TCPDF
+    $pdf = new TCPDF();
+    $pdf->AddPage();
+    $pdf->SetFont('helvetica', 'B', 16);
+    $pdf->Cell(0, 10, 'Laporan Penggunaan Pengeluaran', 0, 1, 'C');
+    $pdf->Ln(5);
+    $pdf->SetFont('helvetica', '', 11);
+
+    // Buat isi tabel
+    $html = '<table border="1" cellpadding="4" cellspacing="0" style="border-collapse: collapse; width:100%;">';
+    $html .= '<tr style="background-color:#007bff;color:#fff;">
+                <th width="5%">No</th>
+                <th width="20%">Nama Pengguna</th>
+                <th width="15%">Tanggal</th>
+                <th width="20%">Jumlah</th>
+                <th width="20%">Kode Rekening</th>
+                <th width="20%">Keterangan</th>
+              </tr>';
+
+    $no = 1;
+    if (empty($expenditures)) {
+        $html .= '<tr><td colspan="6" align="center">Tidak ada data pengeluaran.</td></tr>';
+    } else {
+        foreach ($expenditures as $ex) {
+            $user = $this->User_model->get_user_by_id($ex->user_id);
+            $html .= '<tr>';
+            $html .= '<td align="center">' . $no++ . '</td>';
+            $html .= '<td>' . htmlspecialchars($user ? $user->nama_lengkap : '-') . '</td>';
+            $html .= '<td>' . date('d-m-Y', strtotime($ex->tanggal_pengeluaran)) . '</td>';
+            $html .= '<td align="right">Rp ' . number_format($ex->jumlah_pengeluaran, 0, ',', '.') . '</td>';
+            $html .= '<td>' . htmlspecialchars($ex->kode_rekening_kode) . ' - ' . htmlspecialchars($ex->nama_rekening) . '</td>';
+            $html .= '<td>' . htmlspecialchars($ex->keterangan) . '</td>';
+            $html .= '</tr>';
+        }
+    }
+    $html .= '</table>';
+
+    $pdf->writeHTML($html, true, false, true, false, '');
+    $pdf->Output('laporan_penggunaan_' . $role . '.pdf', 'I');
+}
 
     // Export Excel laporan penggunaan
     public function export_excel() {
@@ -92,7 +146,8 @@ class LaporanPenggunaan extends CI_Controller {
         $end_date = $this->input->post('end_date');
         $user_id = $this->input->post('user_id');
 
-        $expenditures = $this->Pengeluaran_model->get_filtered_expenditures_with_rekening($start_date, $end_date, $user_id);
+        // PAKAI model yang benar
+        $expenditures = $this->Expenditure_model->get_filtered_expenditures_with_rekening($start_date, $end_date, $user_id);
 
         $this->load->library('PHPExcel_Lib');
         $excel = new PHPExcel_Lib();

@@ -13,9 +13,20 @@ class Report extends CI_Controller {
 
     // Halaman utama laporan dengan form filter
     public function index() {
-        $data['users'] = $this->User_model->get_all_users_except_roles(['bendahara', 'superadmin']);
-        $this->load->view('report_view', $data);
-    }
+    // Ambil data user kecuali bendahara & superadmin
+    $users = $this->User_model->get_all_users_except_roles(['bendahara', 'superadmin']);
+
+    // Gunakan layout bendahara
+    $data['content_view'] = 'report_view';
+    $data['content_data'] = [
+        'users' => $users
+    ];
+    $data['title'] = 'Laporan Keuangan';
+
+    // Tampilkan layout utama agar sidebar & tampilan tetap konsisten
+    $this->load->view('layouts/bendahara_layout', $data);
+}
+
 
     // Generate rekap pengeluaran bulanan (jumlah per pengguna)
     public function generate() {

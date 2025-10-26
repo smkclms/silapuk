@@ -22,10 +22,17 @@ class SumberAnggaran extends CI_Controller {
         }
 
         // Ambil data sumber anggaran berdasarkan tahun aktif
-        $data['sumber'] = $this->SumberAnggaran_model->get_all_sumber();
-        $data['tahun_aktif'] = $tahun_aktif;
+        $sumber = $this->SumberAnggaran_model->get_all_sumber();
 
-        $this->load->view('sumber_anggaran_view', $data);
+        // Gunakan layout bendahara (sidebar + konten tengah)
+        $data['content_view'] = 'sumber_anggaran_view';
+        $data['content_data'] = [
+            'sumber' => $sumber,
+            'tahun_aktif' => $tahun_aktif
+        ];
+        $data['title'] = 'Sumber Anggaran';
+
+        $this->load->view('layouts/bendahara_layout', $data);
     }
 
     // ✅ Tambah sumber baru
@@ -37,14 +44,23 @@ class SumberAnggaran extends CI_Controller {
             redirect('auth/login');
         }
 
+        $nama_sumber = $this->input->post('nama_sumber');
+        $jumlah      = $this->input->post('jumlah');
+
+        // 🧩 Jika jumlah kosong, isi otomatis 0
+        if ($jumlah === '' || $jumlah === null) {
+            $jumlah = 0;
+        }
+
         $data = [
-            'nama_sumber' => $this->input->post('nama_sumber'),
-            'jumlah'      => $this->input->post('jumlah'),
-            'tahun'       => $tahun_aktif, // simpan tahun login aktif
+            'nama_sumber' => $nama_sumber,
+            'jumlah'      => $jumlah,
+            'tahun'       => $tahun_aktif,
             'created_at'  => date('Y-m-d H:i:s')
         ];
 
         $this->SumberAnggaran_model->create_sumber($data);
+        $this->session->set_flashdata('success', 'Sumber anggaran berhasil ditambahkan.');
         redirect('sumberanggaran');
     }
 
@@ -62,12 +78,21 @@ class SumberAnggaran extends CI_Controller {
     public function update($id = null) {
         if (!$id) redirect('sumberanggaran');
 
+        $nama_sumber = $this->input->post('nama_sumber');
+        $jumlah      = $this->input->post('jumlah');
+
+        // 🧩 Jika jumlah kosong saat update, tetap isi 0
+        if ($jumlah === '' || $jumlah === null) {
+            $jumlah = 0;
+        }
+
         $data = [
-            'nama_sumber' => $this->input->post('nama_sumber'),
-            'jumlah'      => $this->input->post('jumlah')
+            'nama_sumber' => $nama_sumber,
+            'jumlah'      => $jumlah
         ];
 
         $this->SumberAnggaran_model->update_sumber($id, $data);
+        $this->session->set_flashdata('success', 'Data sumber anggaran berhasil diperbarui.');
         redirect('sumberanggaran');
     }
 
@@ -76,6 +101,7 @@ class SumberAnggaran extends CI_Controller {
         if (!$id) redirect('sumberanggaran');
 
         $this->SumberAnggaran_model->delete_sumber($id);
+        $this->session->set_flashdata('success', 'Data sumber anggaran berhasil dihapus.');
         redirect('sumberanggaran');
     }
 }

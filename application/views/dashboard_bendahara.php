@@ -360,27 +360,36 @@ html, body {
 </h4>
 </div>
         <div class="card-container">
-            <?php foreach ($users as $user): ?>
-                <?php
-                if (in_array(strtolower($user->role), ['bendahara', 'superadmin'])) continue;
-                $anggaran = $this->Anggaran_model->get_anggaran_by_user($user->id);
-                $total_anggaran = !empty($anggaran) ? $anggaran[0]->jumlah_anggaran : 0;
+    <?php foreach ($users as $user): ?>
+        <?php
+        if (in_array(strtolower($user->role), array('bendahara', 'superadmin'))) continue;
 
-                $expenditures_user = $this->Expenditure_model->get_expenditures_by_user($user->id);
-                $total_pengeluaran = 0;
-                foreach ($expenditures_user as $ex) {
-                    $total_pengeluaran += is_array($ex) ? $ex['jumlah_pengeluaran'] : $ex->jumlah_pengeluaran;
-                }
+        // Ambil semua anggaran user
+        $anggaran_list = $this->Anggaran_model->get_anggaran_by_user($user->id);
+        $total_anggaran = 0;
+        if (!empty($anggaran_list)) {
+            foreach ($anggaran_list as $a) {
+                $total_anggaran += $a->jumlah_anggaran;
+            }
+        }
 
-                $sisa_anggaran = $total_anggaran - $total_pengeluaran;
-                ?>
-                <div class="card">
-                    <h3><?= $user->nama_lengkap; ?></h3>
-                    <p class="jumlah-anggaran">Jumlah Anggaran: Rp <?= number_format($total_anggaran, 0, ',', '.'); ?></p>
-                    <p class="sisa-anggaran">Sisa Anggaran: Rp <?= number_format($sisa_anggaran, 0, ',', '.'); ?></p>
-                </div>
-            <?php endforeach; ?>
+        // Ambil semua pengeluaran user
+        $expenditures_user = $this->Expenditure_model->get_expenditures_by_user($user->id);
+        $total_pengeluaran = 0;
+        foreach ($expenditures_user as $ex) {
+            $total_pengeluaran += is_array($ex) ? $ex['jumlah_pengeluaran'] : $ex->jumlah_pengeluaran;
+        }
+
+        $sisa_anggaran = $total_anggaran - $total_pengeluaran;
+        ?>
+        <div class="card">
+            <h3><?= $user->nama_lengkap; ?></h3>
+            <p class="jumlah-anggaran">Jumlah Anggaran: Rp <?= number_format($total_anggaran, 0, ',', '.'); ?></p>
+            <p class="sisa-anggaran">Sisa Anggaran: Rp <?= number_format($sisa_anggaran, 0, ',', '.'); ?></p>
         </div>
+    <?php endforeach; ?>
+</div>
+
 
         <!-- <h2>Daftar Pengeluaran</h2>
         <table>

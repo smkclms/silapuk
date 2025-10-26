@@ -19,53 +19,66 @@ class Expenditure extends CI_Controller {
     }
 
     public function index($page = 0) {
-        $limit = 12;
+    $limit = 12;
 
-        // Ambil tahun aktif dari session
-        $tahun_id = $this->session->userdata('tahun_id');
-        if (!$tahun_id) {
-            $this->session->set_flashdata('error', 'Tahun anggaran belum dipilih. Silakan login ulang.');
-            redirect('auth/login');
-        }
-
-        // Konfigurasi pagination
-        $config['base_url'] = site_url('expenditure/index');
-        $config['total_rows'] = $this->Expenditure_model->count_all_expenditures($tahun_id);
-        $config['per_page'] = $limit;
-        $config['uri_segment'] = 3;
-
-        // Styling pagination Bootstrap 5
-        $config['full_tag_open'] = '<nav><ul class="pagination justify-content-center">';
-        $config['full_tag_close'] = '</ul></nav>';
-        $config['first_link'] = 'First';
-        $config['last_link'] = 'Last';
-        $config['first_tag_open'] = '<li class="page-item">';
-        $config['first_tag_close'] = '</li>';
-        $config['prev_link'] = '&laquo;';
-        $config['prev_tag_open'] = '<li class="page-item">';
-        $config['prev_tag_close'] = '</li>';
-        $config['next_link'] = '&raquo;';
-        $config['next_tag_open'] = '<li class="page-item">';
-        $config['next_tag_close'] = '</li>';
-        $config['last_tag_open'] = '<li class="page-item">';
-        $config['last_tag_close'] = '</li>';
-        $config['cur_tag_open'] = '<li class="page-item active"><a class="page-link" href="#">';
-        $config['cur_tag_close'] = '</a></li>';
-        $config['num_tag_open'] = '<li class="page-item">';
-        $config['num_tag_close'] = '</li>';
-        $config['attributes'] = ['class' => 'page-link'];
-
-        $this->pagination->initialize($config);
-
-        // Ambil data pengeluaran per tahun aktif
-        $data['expenditures'] = $this->Expenditure_model->get_expenditures_with_kodering($limit, $page, $tahun_id);
-        $data['users'] = $this->User_model->get_all_users();
-        $data['kode_rekening'] = $this->KodeRekening_model->get_all_kode_rekening();
-        $data['pagination'] = $this->pagination->create_links();
-        $data['tahun_id'] = $tahun_id;
-
-        $this->load->view('expenditure_view', $data);
+    // Ambil tahun aktif dari session
+    $tahun_id = $this->session->userdata('tahun_id');
+    if (!$tahun_id) {
+        $this->session->set_flashdata('error', 'Tahun anggaran belum dipilih. Silakan login ulang.');
+        redirect('auth/login');
     }
+
+    // Konfigurasi pagination
+    $config['base_url'] = site_url('expenditure/index');
+    $config['total_rows'] = $this->Expenditure_model->count_all_expenditures($tahun_id);
+    $config['per_page'] = $limit;
+    $config['uri_segment'] = 3;
+
+    // Styling pagination Bootstrap 5
+    $config['full_tag_open'] = '<nav><ul class="pagination justify-content-center">';
+    $config['full_tag_close'] = '</ul></nav>';
+    $config['first_link'] = 'First';
+    $config['last_link'] = 'Last';
+    $config['first_tag_open'] = '<li class="page-item">';
+    $config['first_tag_close'] = '</li>';
+    $config['prev_link'] = '&laquo;';
+    $config['prev_tag_open'] = '<li class="page-item">';
+    $config['prev_tag_close'] = '</li>';
+    $config['next_link'] = '&raquo;';
+    $config['next_tag_open'] = '<li class="page-item">';
+    $config['next_tag_close'] = '</li>';
+    $config['last_tag_open'] = '<li class="page-item">';
+    $config['last_tag_close'] = '</li>';
+    $config['cur_tag_open'] = '<li class="page-item active"><a class="page-link" href="#">';
+    $config['cur_tag_close'] = '</a></li>';
+    $config['num_tag_open'] = '<li class="page-item">';
+    $config['num_tag_close'] = '</li>';
+    $config['attributes'] = ['class' => 'page-link'];
+
+    $this->pagination->initialize($config);
+
+    // Ambil data pengeluaran berdasarkan tahun aktif
+    $expenditures = $this->Expenditure_model->get_expenditures_with_kodering($limit, $page, $tahun_id);
+    $users = $this->User_model->get_all_users();
+    $kode_rekening = $this->KodeRekening_model->get_all_kode_rekening();
+    $pagination = $this->pagination->create_links();
+
+    // ✅ Gunakan layout bendahara
+    $data['content_view'] = 'expenditure_view';
+    $data['content_data'] = [
+        'expenditures' => $expenditures,
+        'users' => $users,
+        'kode_rekening' => $kode_rekening,
+        'pagination' => $pagination,
+        'tahun_id' => $tahun_id
+    ];
+    $data['title'] = 'Data Pengeluaran';
+
+    // Tampilkan dengan layout utama (agar sidebar & header tetap)
+    $this->load->view('layouts/bendahara_layout', $data);
+}
+
+
 
     // Tambah data pengeluaran
     public function add() {

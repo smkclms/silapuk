@@ -187,7 +187,15 @@
     <?php endif; ?>
     
 
-    <a href="<?= site_url('dashboard/bendahara'); ?>" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Dashboard</a>
+    <?php
+$role = strtolower($this->session->userdata('role'));
+$back_url = ($role == 'bendahara') ? 'dashboard/bendahara' :
+             (($role == 'admin') ? 'dashboard/admin' : 'dashboard/view');
+?>
+<a href="<?= site_url($back_url); ?>" class="back-link">
+    <i class="fas fa-arrow-left"></i> Kembali ke Dashboard
+</a>
+
 </div>
 
 <?php if (isset($monthly_expenditure) && !empty($monthly_expenditure)): ?>

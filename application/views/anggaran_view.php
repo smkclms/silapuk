@@ -69,8 +69,20 @@
                     <button type="submit" class="btn btn-success">
                         <i class="fas fa-plus"></i> Tambah Anggaran
                     </button>
-                    <a href="<?php echo site_url('dashboard/bendahara'); ?>" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Kembali
+                    <?php
+$role = strtolower($this->session->userdata('role'));
+if ($role == 'bendahara') {
+    $back_url = site_url('dashboard/bendahara');
+} elseif ($role == 'admin') {
+    $back_url = site_url('dashboard/admin');
+} else {
+    $back_url = site_url('dashboard/view'); // khusus user biasa
+}
+?>
+<a href="<?php echo $back_url; ?>" class="btn btn-secondary">
+    <i class="fas fa-arrow-left"></i> Kembali
+</a>
+
                     </a>
                 </div>
             </form>

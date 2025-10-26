@@ -30,75 +30,102 @@ class Dashboard extends CI_Controller {
     }
 
     public function bendahara($page = 0) {
-    $config['base_url'] = site_url('dashboard/bendahara');
-    $config['total_rows'] = $this->Expenditure_model->count_all_expenditures();
-    $config['per_page'] = 10;
-    $config['uri_segment'] = 3;
+        $config['base_url'] = site_url('dashboard/bendahara');
+        $config['total_rows'] = $this->Expenditure_model->count_all_expenditures();
+        $config['per_page'] = 10;
+        $config['uri_segment'] = 3;
 
-    // Bootstrap 5 pagination styling
-    $config['full_tag_open'] = '<nav><ul class="pagination">';
-    $config['full_tag_close'] = '</ul></nav>';
-    $config['num_tag_open'] = '<li class="page-item">';
-    $config['num_tag_close'] = '</li>';
-    $config['cur_tag_open'] = '<li class="page-item active"><a class="page-link">';
-    $config['cur_tag_close'] = '</a></li>';
-    $config['prev_link'] = '&laquo;';
-    $config['prev_tag_open'] = '<li class="page-item">';
-    $config['prev_tag_close'] = '</li>';
-    $config['next_link'] = '&raquo;';
-    $config['next_tag_open'] = '<li class="page-item">';
-    $config['next_tag_close'] = '</li>';
-    $config['attributes'] = ['class' => 'page-link'];
+        // Bootstrap pagination styling
+        $config['full_tag_open'] = '<nav><ul class="pagination">';
+        $config['full_tag_close'] = '</ul></nav>';
+        $config['num_tag_open'] = '<li class="page-item">';
+        $config['num_tag_close'] = '</li>';
+        $config['cur_tag_open'] = '<li class="page-item active"><a class="page-link">';
+        $config['cur_tag_close'] = '</a></li>';
+        $config['prev_link'] = '&laquo;';
+        $config['prev_tag_open'] = '<li class="page-item">';
+        $config['prev_tag_close'] = '</li>';
+        $config['next_link'] = '&raquo;';
+        $config['next_tag_open'] = '<li class="page-item">';
+        $config['next_tag_close'] = '</li>';
+        $config['attributes'] = ['class' => 'page-link'];
 
-    $this->pagination->initialize($config);
+        $this->pagination->initialize($config);
 
-    $data['users'] = $this->User_model->get_all_users_except_roles(['bendahara', 'superadmin']);
-    $data['expenditures'] = $this->Expenditure_model->get_expenditures_limit($config['per_page'], $page);
+        $data['users'] = $this->User_model->get_all_users_except_roles(['bendahara', 'superadmin']);
+        $data['expenditures'] = $this->Expenditure_model->get_expenditures_limit($config['per_page'], $page);
 
-    // ✅ Tambahkan semua data pengeluaran untuk grafik
-    $all_expenditures = $this->Expenditure_model->get_all_expenditures();
-    $expenditures_chart = [];
-
-    foreach ($all_expenditures as $ex) {
-        $user = $this->User_model->get_user_by_id($ex->user_id);
-        $name = $user ? $user->nama_lengkap : 'Tidak Diketahui';
-        if (!isset($expenditures_chart[$name])) {
-            $expenditures_chart[$name] = 0;
+        // ✅ Grafik total pengeluaran per user
+        $all_expenditures = $this->Expenditure_model->get_all_expenditures();
+        $expenditures_chart = [];
+        foreach ($all_expenditures as $ex) {
+            $user = $this->User_model->get_user_by_id($ex->user_id);
+            $name = $user ? $user->nama_lengkap : 'Tidak Diketahui';
+            if (!isset($expenditures_chart[$name])) {
+                $expenditures_chart[$name] = 0;
+            }
+            $expenditures_chart[$name] += $ex->jumlah_pengeluaran;
         }
-        $expenditures_chart[$name] += $ex->jumlah_pengeluaran;
-    }
+        $data['expenditures_chart'] = $expenditures_chart;
 
-    $data['expenditures_chart'] = $expenditures_chart;
+        
+        // ✅ Hitung total pagu dari tabel anggaran (bukan dari sumber_anggaran)
+$this->db->select_sum('jumlah_anggaran');
+$tahun_id = $this->session->userdata('tahun_id');
 
-    // Total pagu
-    $sumber_anggaran = $this->SumberAnggaran_model->get_all_sumber();
-    $total_pagu = 0;
-    foreach ($sumber_anggaran as $item) {
-        $total_pagu += $item->jumlah;
-    }
-    $data['total_pagu'] = $total_pagu;
-
-    // Total disalurkan
-    $total_disalurkan = 0;
-    foreach ($data['users'] as $user) {
-        $anggaran = $this->Anggaran_model->get_anggaran_by_user($user->id);
-        $total_disalurkan += !empty($anggaran) ? $anggaran[0]->jumlah_anggaran : 0;
-    }
-    $data['total_disalurkan'] = $total_disalurkan;
-
-    // Total dibelanjakan
-    $total_dibelanjakan = 0;
-    foreach ($data['users'] as $user) {
-        $pengeluaran_user = $this->Expenditure_model->get_expenditures_by_user($user->id);
-        foreach ($pengeluaran_user as $ex) {
-            $total_dibelanjakan += is_array($ex) ? $ex['jumlah_pengeluaran'] : $ex->jumlah_pengeluaran;
-        }
-    }
-    $data['total_dibelanjakan'] = $total_dibelanjakan;
-
-    $this->load->view('dashboard_bendahara', $data);
+if ($tahun_id) {
+    $this->db->where('tahun_id', $tahun_id); // filter tahun aktif
 }
 
+$query = $this->db->get('anggaran')->row();
+$total_pagu = $query ? (float)$query->jumlah_anggaran : 0;
+$data['total_pagu'] = $total_pagu;
+
+
+        // ✅ Total disalurkan (akumulasi semua anggaran semua user)
+        $total_disalurkan = 0;
+        foreach ($data['users'] as $user) {
+            $anggaran_list = $this->Anggaran_model->get_anggaran_by_user($user->id);
+            $total_user = 0;
+            if (!empty($anggaran_list)) {
+                foreach ($anggaran_list as $a) {
+                    $total_user += $a->jumlah_anggaran;
+                }
+            }
+            $total_disalurkan += $total_user;
+        }
+        $data['total_disalurkan'] = $total_disalurkan;
+
+        // ✅ Total dibelanjakan
+        $total_dibelanjakan = 0;
+        foreach ($data['users'] as $user) {
+            $pengeluaran_user = $this->Expenditure_model->get_expenditures_by_user($user->id);
+            foreach ($pengeluaran_user as $ex) {
+                $total_dibelanjakan += is_array($ex) ? $ex['jumlah_pengeluaran'] : $ex->jumlah_pengeluaran;
+            }
+        }
+        $data['total_dibelanjakan'] = $total_dibelanjakan;
+
+        // ✅ Tambahkan total dan sisa anggaran untuk setiap user (agar card menampilkan total akumulatif)
+        foreach ($data['users'] as &$user) {
+            $anggaran_user = $this->Anggaran_model->get_anggaran_by_user($user->id);
+            $total_anggaran = 0;
+            foreach ($anggaran_user as $a) {
+                $total_anggaran += $a->jumlah_anggaran;
+            }
+
+            $pengeluaran_user = $this->Expenditure_model->get_expenditures_by_user($user->id);
+            $total_pengeluaran = 0;
+            foreach ($pengeluaran_user as $ex) {
+                $total_pengeluaran += $ex->jumlah_pengeluaran;
+            }
+
+            $user->total_anggaran = $total_anggaran;
+            $user->sisa_anggaran = $total_anggaran - $total_pengeluaran;
+        }
+
+        $this->load->view('dashboard_bendahara', $data);
+    }
 
     public function view() {
         $user_id = $this->session->userdata('user_id');
@@ -108,10 +135,8 @@ class Dashboard extends CI_Controller {
         }
 
         $data['expenditures'] = $this->Expenditure_model->get_expenditures_by_user($user_id);
-
         $anggaran = $this->Anggaran_model->get_anggaran_by_user($user_id);
         $data['anggaran'] = !empty($anggaran) ? $anggaran[0] : null;
-
         $data['user'] = $this->User_model->get_user_by_id($user_id);
 
         $this->load->view('dashboard_view', $data);
@@ -127,10 +152,12 @@ class Dashboard extends CI_Controller {
 
         $user = $this->User_model->get_user_by_id($user_id);
         $anggaran = $this->Anggaran_model->get_anggaran_by_user($user_id);
-        $total_anggaran = !empty($anggaran) ? $anggaran[0]->jumlah_anggaran : 0;
+        $total_anggaran = 0;
+        foreach ($anggaran as $a) {
+            $total_anggaran += $a->jumlah_anggaran;
+        }
 
         $expenditures_user = $this->Expenditure_model->get_expenditures_by_user($user_id);
-
         $total_pengeluaran = 0;
         foreach ($expenditures_user as $ex) {
             $total_pengeluaran += is_array($ex) ? $ex['jumlah_pengeluaran'] : $ex->jumlah_pengeluaran;

@@ -13,8 +13,8 @@ class KodeRekening extends CI_Controller {
    public function index() {
     // Konfigurasi pagination
     $config['base_url'] = site_url('koderekening/index');
-    $config['total_rows'] = $this->db->count_all('kode_rekening'); // total data
-    $config['per_page'] = 10; // tampilkan 10 data per halaman
+    $config['total_rows'] = $this->db->count_all('kode_rekening');
+    $config['per_page'] = 10;
     $config['uri_segment'] = 3;
 
     // Styling pagination (bootstrap 5)
@@ -39,13 +39,24 @@ class KodeRekening extends CI_Controller {
 
     $this->pagination->initialize($config);
 
+    // Ambil data
     $start = $this->uri->segment(3, 0);
-    $data['kode_rekening'] = $this->db->get('kode_rekening', $config['per_page'], $start)->result();
+    $kode_rekening = $this->db->get('kode_rekening', $config['per_page'], $start)->result();
+    $pagination = $this->pagination->create_links();
 
-    $data['pagination'] = $this->pagination->create_links();
+    // === Inilah kuncinya ===
+    // View tetap sama, cuma kita tampilkan di dalam layout bendahara
+    $data['content_view'] = 'kode_rekening_view';
+    $data['content_data'] = [
+        'kode_rekening' => $kode_rekening,
+        'pagination' => $pagination
+    ];
+    $data['title'] = 'Kode Rekening';
 
-    $this->load->view('kode_rekening_view', $data);
+    // Muat layout utama
+    $this->load->view('layouts/bendahara_layout', $data);
 }
+
 
 
     // Menambahkan kode rekening baru

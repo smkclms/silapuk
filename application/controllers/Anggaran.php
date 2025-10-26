@@ -12,25 +12,33 @@ class Anggaran extends CI_Controller {
     }
 
     public function index() {
-        // Ambil tahun aktif & id tahun dari session
-        $tahun_aktif = $this->session->userdata('tahun_anggaran');
-        $tahun_id    = $this->session->userdata('tahun_id');
+    // Ambil tahun aktif & id tahun dari session
+    $tahun_aktif = $this->session->userdata('tahun_anggaran');
+    $tahun_id    = $this->session->userdata('tahun_id');
 
-        if (!$tahun_aktif || !$tahun_id) {
-            $this->session->set_flashdata('error', 'Silakan login ulang, tahun anggaran tidak ditemukan.');
-            redirect('auth/login');
-        }
-
-        // Ambil data anggaran berdasarkan tahun aktif
-        $data['anggaran'] = $this->Anggaran_model->get_all_anggaran();
-
-        // Ambil daftar user untuk dropdown
-        $data['users'] = $this->User_model->get_all();
-
-        // Kirim ke view
-        $data['tahun_aktif'] = $tahun_aktif;
-        $this->load->view('anggaran_view', $data);
+    // Cegah akses jika session kosong
+    if (!$tahun_aktif || !$tahun_id) {
+        $this->session->set_flashdata('error', 'Silakan login ulang, tahun anggaran tidak ditemukan.');
+        redirect('auth/login');
     }
+
+    // Ambil data anggaran & user
+    $anggaran = $this->Anggaran_model->get_all_anggaran();
+    $users    = $this->User_model->get_all();
+
+    // Gunakan layout bendahara
+    $data['content_view'] = 'anggaran_view';
+    $data['content_data'] = [
+        'anggaran' => $anggaran,
+        'users' => $users,
+        'tahun_aktif' => $tahun_aktif
+    ];
+    $data['title'] = 'Data Anggaran';
+
+    // Panggil layout utama
+    $this->load->view('layouts/bendahara_layout', $data);
+}
+
 
     public function add() {
         // Ambil dari form
